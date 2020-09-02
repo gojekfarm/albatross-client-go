@@ -1,10 +1,12 @@
 package config
 
-import "time"
+import (
+	"net/url"
+	"time"
+)
 
 // ConfiConfigFunc represents the contract of a config modifier function
-type ConfigFunc func(config *Config)
-
+type ConfigFunc func(config *Config) error
 
 // Retry keeps the retry policy for api calls
 type Retry struct {
@@ -36,16 +38,30 @@ func DefaultConfig() *Config {
 	}
 }
 
+// WithHost allows the user to set a custom timeout for api calls
+func WithHost(host string) ConfigFunc {
+	return func(config *Config) error {
+		if _, err := url.ParseRequestURI(host); err != nil {
+			return err
+		}
+
+		config.Host = host
+		return nil
+	}
+}
+
 // WithRetry allows the user to set a custom timeout for api calls
 func WithTimeout(timeout time.Duration) ConfigFunc {
-	return func(config *Config) {
+	return func(config *Config) error {
 		config.Timeout = timeout
+		return nil
 	}
 }
 
 // WithRetry sets the retry policy
 func WithRetry(retryConfig *Retry) ConfigFunc {
-	return func(config *Config) {
+	return func(config *Config) error {
 		config.Retry = retryConfig
+		return nil
 	}
 }

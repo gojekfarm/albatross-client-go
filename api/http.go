@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
@@ -17,7 +18,7 @@ import (
 // APIClient defines the contract for the http client implementation to send requests to
 // the albatross api server
 type APIClient interface {
-	Send(url string, method string, body io.Reader) (io.Reader, error)
+	Send(url string, method string, body io.Reader) (*http.Response, []byte, error)
 }
 
 // HttpClient is responsible to sending api requests and parsing their responses
@@ -55,10 +56,10 @@ type listResponse struct {
 }
 
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
-func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader) (io.Reader, error) {
+func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader) (*http.Response, []byte, error) {
 	u, err := url.Parse(c.baseUrl)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	u.Path = path.Join(strings.TrimRight(u.Path, "/"), reqPath)
@@ -74,13 +75,13 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 		return nil, err
 	}
 
-	resp, err := c.request(ctx, "list", "GET", bytes.NewBuffer(reqBody))
+	_, data, err := c.request(ctx, "list", "GET", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}
 
 	var result listResponse
-	if err := json.NewDecoder(resp).Decode(&result); err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return nil, err
 	}
 
@@ -105,13 +106,13 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 		return "", err
 	}
 
-	resp, err := c.request(ctx, "install", "PUT", bytes.NewBuffer(reqBody))
+	_, data, err := c.request(ctx, "install", "PUT", bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", err
 	}
 
 	var result installResponse
-	if err := json.NewDecoder(resp).Decode(&result); err != nil {
+	if err := json.Unmarshal(data, &result); err != nil {
 		return "", err
 	}
 

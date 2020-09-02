@@ -24,16 +24,19 @@ type Client interface {
 
 // NewClient returns a new based on the passed Config
 // It looks at the connection type in the config struct and hands out appropriate clients
-func NewClient(host string, confFuncs ...config.ConfigFunc) Client {
-	config := config.DefaultConfig()
-	config.Host = host
+func NewClient(host string, confFuncs ...config.ConfigFunc) (Client, error) {
+	cfg := config.DefaultConfig()
+	// Should we allow host to be specified with configfuncs?
+	confFuncs = append(confFuncs, config.WithHost(host))
 
 	for _, confFunc := range confFuncs {
-		confFunc(config)
+		if err := confFunc(cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	return &HttpClient{
-		baseUrl: config.Host,
-		client:  httpclient.NewClient(config),
-	}
+		baseUrl: cfg.Host,
+		client:  httpclient.NewClient(cfg),
+	}, nil
 }
