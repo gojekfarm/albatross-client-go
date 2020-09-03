@@ -3,6 +3,8 @@ package config
 import (
 	"net/url"
 	"time"
+
+	"github.com/gojekfarm/albatross-client-go/logger"
 )
 
 // ConfiConfigFunc represents the contract of a config modifier function
@@ -28,6 +30,9 @@ type Config struct {
 
 	// The retry configuration
 	Retry *Retry
+
+	// The logger instance for the client
+	Logger logger.Logger
 }
 
 // DefaultConfig returns a default Config struct with sensible defaults set
@@ -35,6 +40,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Host:    "http://localhost:8080",
 		Timeout: 5 * time.Second,
+		Logger:  &logger.DefaultLogger{},
 	}
 }
 
@@ -62,6 +68,14 @@ func WithTimeout(timeout time.Duration) ConfigFunc {
 func WithRetry(retryConfig *Retry) ConfigFunc {
 	return func(config *Config) error {
 		config.Retry = retryConfig
+		return nil
+	}
+}
+
+// WithLogger sets the logger for the client
+func WithLogger(logger logger.Logger) ConfigFunc {
+	return func(config *Config) error {
+		config.Logger = logger
 		return nil
 	}
 }

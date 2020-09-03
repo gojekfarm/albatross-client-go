@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gojekfarm/albatross-client-go/config"
+	"github.com/gojekfarm/albatross-client-go/logger"
 )
 
 type client interface {
@@ -17,6 +18,7 @@ type client interface {
 type Client struct {
 	client client
 	retry  *config.Retry
+	logger logger.Logger
 }
 
 // Request executes a given request with the provided retry policy
@@ -35,22 +37,21 @@ func (c *Client) Send(url string, method string, body io.Reader) (*http.Response
 
 	resp, err := c.client.Do(request)
 	if err != nil {
-		// TODO: log, this most likely a network error
+		c.logger.Errorf("Error connecting to the albatross api: %s", err)
 		return nil, nil, err
 	}
 
 	defer resp.Body.Close()
-
-	// Log all 5xx errors, and returns the resp for additional parsing
-	if resp.StatusCode >= 500 {
-		// TODO: log server errors here
-		// With a 5xx, the response most likely won't be parsable
-		return resp, nil, nil
-	}
-
 	data, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return resp, nil, err
+	}
+
+	// Log all 5xx errors, and returns the resp for additional parsing
+	if resp.StatusCode >= 500 {
+		// With a 5xx, the response most likely won't be parsable
+		c.logger.Errorf("server error for albatross api: %s - %s", url, data)
+		return resp, nil, nil
 	}
 
 	return resp, data, nil
@@ -64,6 +65,7 @@ func NewClient(config *config.Config) *Client {
 		client: &http.Client{
 			Timeout: config.Timeout,
 		},
-		retry: config.Retry,
+		retry:  config.Retry,
+		logger: config.Logger,
 	}
 }
