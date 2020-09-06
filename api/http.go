@@ -90,7 +90,7 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 		return nil, err
 	}
 
-	_, data, err := c.request(ctx, "list", "GET", bytes.NewBuffer(reqBody))
+	_, data, err := c.request(ctx, "list", http.MethodGet, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 		return "", err
 	}
 
-	_, data, err := c.request(ctx, "install", "PUT", bytes.NewBuffer(reqBody))
+	_, data, err := c.request(ctx, "install", http.MethodPut, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", err
 	}
@@ -151,7 +151,7 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 		return "", err
 	}
 
-	_, data, err := c.request(ctx, "upgrade", "POST", bytes.NewBuffer(reqBody))
+	_, data, err := c.request(ctx, "upgrade", http.MethodPost, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return "", err
 	}
