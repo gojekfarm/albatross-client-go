@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -101,7 +101,7 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 	}
 
 	if result.Error != "" {
-		return nil, errors.New(result.Error)
+		return nil, fmt.Errorf("List API returned an error: %s", result.Error)
 
 	}
 
@@ -132,7 +132,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	}
 
 	if result.Error != "" {
-		return "", errors.New(result.Error)
+		return "", fmt.Errorf("Install API returned an error: %s", result.Error)
 
 	}
 
@@ -162,7 +162,7 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 
 	if result.Error != "" {
-		return "", errors.New(result.Error)
+		return "", fmt.Errorf("Upgrade API returned an error: %s", result.Error)
 
 	}
 

@@ -90,7 +90,7 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 	result, err := httpclient.Install(context.Background(), "testrelease", "testchart", values, fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
-	assert.EqualError(t, err, "Invalid Request")
+	assert.EqualError(t, err, "Install API returned an error: Invalid Request")
 }
 
 func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
@@ -159,7 +159,7 @@ func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
 	result, err := httpclient.Upgrade(context.Background(), "testrelease", "testchart", values, fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
-	assert.EqualError(t, err, "Invalid Request")
+	assert.EqualError(t, err, "Upgrade API returned an error: Invalid Request")
 }
 
 func TestHttpClientListAPIOnSuccess(t *testing.T) {
@@ -233,5 +233,5 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	result, err := httpclient.List(context.Background(), fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
-	assert.EqualError(t, err, "cluster unavailable")
+	assert.EqualError(t, err, "List API returned an error: cluster unavailable")
 }
