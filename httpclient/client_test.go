@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gojekfarm/albatross-client-go/config"
+	"github.com/gojekfarm/albatross-client-go/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,9 +26,9 @@ func (m *mockClient) Do(req *http.Request) (*http.Response, error) {
 func TestHttpClientSendOnSuccess(t *testing.T) {
 	mc := new(mockClient)
 	response := &http.Response{
-		Status: "200 OK",
+		Status:     "200 OK",
 		StatusCode: 200,
-		Body: ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
 	}
 
 	mc.On("Do", mock.Anything).Return(response, nil)
@@ -35,8 +36,9 @@ func TestHttpClientSendOnSuccess(t *testing.T) {
 		client: mc,
 		retry: &config.Retry{
 			RetryCount: 3,
-			Backoff: 2 * time.Second,
+			Backoff:    2 * time.Second,
 		},
+		logger: &logger.DefaultLogger{},
 	}
 
 	resp, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
@@ -49,9 +51,9 @@ func TestHttpClientSendOnSuccess(t *testing.T) {
 func TestHttpClientSendOnServerError(t *testing.T) {
 	mc := new(mockClient)
 	response := &http.Response{
-		Status: "500 Internal Server Error",
+		Status:     "500 Internal Server Error",
 		StatusCode: 500,
-		Body: ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
 	}
 
 	mc.On("Do", mock.Anything).Return(response, nil)
@@ -59,8 +61,9 @@ func TestHttpClientSendOnServerError(t *testing.T) {
 		client: mc,
 		retry: &config.Retry{
 			RetryCount: 3,
-			Backoff: 2 * time.Second,
+			Backoff:    2 * time.Second,
 		},
+		logger: &logger.DefaultLogger{},
 	}
 
 	resp, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
@@ -73,9 +76,9 @@ func TestHttpClientSendOnServerError(t *testing.T) {
 func TestHttpClientSendOnBadRequest(t *testing.T) {
 	mc := new(mockClient)
 	response := &http.Response{
-		Status: "400 Bad Request",
+		Status:     "400 Bad Request",
 		StatusCode: 400,
-		Body: ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
 	}
 
 	mc.On("Do", mock.Anything).Return(response, nil)
@@ -83,8 +86,9 @@ func TestHttpClientSendOnBadRequest(t *testing.T) {
 		client: mc,
 		retry: &config.Retry{
 			RetryCount: 3,
-			Backoff: 2 * time.Second,
+			Backoff:    2 * time.Second,
 		},
+		logger: &logger.DefaultLogger{},
 	}
 
 	resp, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
@@ -103,8 +107,9 @@ func TestHttpClientSendOnNetworkError(t *testing.T) {
 		client: mc,
 		retry: &config.Retry{
 			RetryCount: 3,
-			Backoff: 2 * time.Second,
+			Backoff:    2 * time.Second,
 		},
+		logger: &logger.DefaultLogger{},
 	}
 
 	_, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))

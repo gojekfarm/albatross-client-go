@@ -20,6 +20,10 @@ type Client interface {
 	// Install installs a release, specified by the params, and returns a status
 	// TODO: We should have the api return the release object, instead of just the status
 	Install(ctx context.Context, name string, chart string, values Values, fl flags.InstallFlags) (string, error)
+
+	// Upgrade installs a release, specified by the params, and returns a status.
+	// UpgradeFlags govern the actions of upgrade action, i.e whether it should be installed if not present
+	Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error)
 }
 
 // NewClient returns a new based on the passed Config

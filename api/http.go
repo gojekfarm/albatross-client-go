@@ -44,6 +44,21 @@ type installResponse struct {
 	Data   string `json:"data,omitempty"`
 }
 
+// upgradeRequest is the json schema for the upgrade api
+type upgradeRequest struct {
+	Name   string
+	Chart  string
+	Values Values
+	Flags  flags.UpgradeFlags
+}
+
+// upgradeResponse is the json schema to parse the upgrade api response
+type upgradeResponse struct {
+	Error  string `json:"error,omitempty"`
+	Status string `json:"status,omitempty"`
+	Data   string `json:"data,omitempty"`
+}
+
 // listRequest is the json schema for the list api
 type listRequest struct {
 	flags.ListFlags
@@ -112,6 +127,36 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	}
 
 	var result installResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", err
+	}
+
+	if result.Error != "" {
+		return "", errors.New(result.Error)
+
+	}
+
+	return result.Status, nil
+}
+
+// Upgrade calls the upgrade api and returns the status
+func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error) {
+	reqBody, err := json.Marshal(&upgradeRequest{
+		Name:   name,
+		Chart:  chart,
+		Values: values,
+		Flags:  fl,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	_, data, err := c.request(ctx, "upgrade", "POST", bytes.NewBuffer(reqBody))
+	if err != nil {
+		return "", err
+	}
+
+	var result upgradeResponse
 	if err := json.Unmarshal(data, &result); err != nil {
 		return "", err
 	}

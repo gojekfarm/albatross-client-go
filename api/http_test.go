@@ -93,6 +93,75 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 	assert.EqualError(t, err, "Invalid Request")
 }
 
+func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	apiresponse, err := json.Marshal(&upgradeResponse{
+		Status: "deployed",
+	})
+	if err != nil {
+		t.Error("Unable to encode upgrade response")
+	}
+	httpresponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
+
+	httpclient := &HttpClient{
+		baseUrl: "http://localhost:8080",
+		client:  apiclient,
+	}
+
+	values := Values{
+		"test": "test",
+	}
+
+	fl := flags.UpgradeFlags{
+		CommonFlags: flags.CommonFlags{
+			Namespace: "testnamespace",
+		},
+	}
+	result, err := httpclient.Upgrade(context.Background(), "testrelease", "testchart", values, fl)
+	assert.NoError(t, err)
+	assert.Equal(t, result, "deployed")
+}
+
+func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	apiresponse, err := json.Marshal(&upgradeResponse{
+		Error: "Invalid Request",
+	})
+	if err != nil {
+		t.Error("Unable to encode upgrade response")
+	}
+	httpresponse := &http.Response{
+		Status:     "400 Bad Request",
+		StatusCode: 400,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
+
+	httpclient := &HttpClient{
+		baseUrl: "http://localhost:8080",
+		client:  apiclient,
+	}
+
+	values := Values{
+		"test": "test",
+	}
+
+	fl := flags.UpgradeFlags{
+		CommonFlags: flags.CommonFlags{
+			Namespace: "testnamespace",
+		},
+	}
+	result, err := httpclient.Upgrade(context.Background(), "testrelease", "testchart", values, fl)
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assert.EqualError(t, err, "Invalid Request")
+}
+
 func TestHttpClientListAPIOnSuccess(t *testing.T) {
 	apiclient := new(mockAPIClient)
 	apiresponse, err := json.Marshal(&listResponse{
