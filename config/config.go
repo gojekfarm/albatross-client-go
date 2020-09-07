@@ -1,14 +1,13 @@
 package config
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/gojekfarm/albatross-client-go/logger"
 )
 
-// ConfiConfigFunc represents the contract of a config modifier function
-type ConfigFunc func(config *Config) error
+// Option represents the contract of a config modifier function
+type Option func(config *Config)
 
 // Retry keeps the retry policy for api calls
 type Retry struct {
@@ -22,9 +21,6 @@ type Retry struct {
 
 // Config defines settings for a new client
 type Config struct {
-	// The host to connect to albatross API
-	Host string
-
 	// Timeout for API calls
 	Timeout time.Duration
 
@@ -38,44 +34,28 @@ type Config struct {
 // DefaultConfig returns a default Config struct with sensible defaults set
 func DefaultConfig() *Config {
 	return &Config{
-		Host:    "http://localhost:8080",
 		Timeout: 5 * time.Second,
 		Logger:  &logger.DefaultLogger{},
 	}
 }
 
-// WithHost allows the user to set a custom timeout for api calls
-func WithHost(host string) ConfigFunc {
-	return func(config *Config) error {
-		if _, err := url.ParseRequestURI(host); err != nil {
-			return err
-		}
-
-		config.Host = host
-		return nil
-	}
-}
-
 // WithRetry allows the user to set a custom timeout for api calls
-func WithTimeout(timeout time.Duration) ConfigFunc {
-	return func(config *Config) error {
+func WithTimeout(timeout time.Duration) Option {
+	return func(config *Config) {
 		config.Timeout = timeout
-		return nil
 	}
 }
 
 // WithRetry sets the retry policy
-func WithRetry(retryConfig *Retry) ConfigFunc {
-	return func(config *Config) error {
+func WithRetry(retryConfig *Retry) Option {
+	return func(config *Config) {
 		config.Retry = retryConfig
-		return nil
 	}
 }
 
 // WithLogger sets the logger for the client
-func WithLogger(logger logger.Logger) ConfigFunc {
-	return func(config *Config) error {
+func WithLogger(logger logger.Logger) Option {
+	return func(config *Config) {
 		config.Logger = logger
-		return nil
 	}
 }

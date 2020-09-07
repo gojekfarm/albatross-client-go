@@ -7,6 +7,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"testing"
 
 	"github.com/gojekfarm/albatross-client-go/flags"
@@ -39,8 +40,10 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 
@@ -73,8 +76,10 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 
@@ -108,8 +113,10 @@ func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 
@@ -142,8 +149,10 @@ func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 
@@ -186,8 +195,10 @@ func TestHttpClientListAPIOnSuccess(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 
@@ -220,8 +231,10 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
 	httpclient := &HttpClient{
-		baseUrl: "http://localhost:8080",
+		baseUrl: baseUrl,
 		client:  apiclient,
 	}
 

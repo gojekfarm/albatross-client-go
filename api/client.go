@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/gojekfarm/albatross-client-go/config"
 	"github.com/gojekfarm/albatross-client-go/flags"
@@ -26,21 +27,22 @@ type Client interface {
 	Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error)
 }
 
-// NewClient returns a new based on the passed Config
-// It looks at the connection type in the config struct and hands out appropriate clients
-func NewClient(host string, confFuncs ...config.ConfigFunc) (Client, error) {
-	cfg := config.DefaultConfig()
-	// Should we allow host to be specified with configfuncs?
-	confFuncs = append(confFuncs, config.WithHost(host))
+// NewClient returns a new http client for the corresponding host
+// and config options.
+// In case of invalid host, it returns an error
+func NewClient(host string, opts ...config.Option) (Client, error) {
+	baseUrl, err := url.ParseRequestURI(host)
+	if err != nil {
+		return nil, err
+	}
 
-	for _, confFunc := range confFuncs {
-		if err := confFunc(cfg); err != nil {
-			return nil, err
-		}
+	cfg := config.DefaultConfig()
+	for _, opt := range opts {
+		opt(cfg)
 	}
 
 	return &HttpClient{
-		baseUrl: cfg.Host,
+		baseUrl: baseUrl,
 		client:  httpclient.NewClient(cfg),
 	}, nil
 }

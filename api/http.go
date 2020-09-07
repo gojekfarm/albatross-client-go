@@ -25,7 +25,7 @@ type APIClient interface {
 // It embeds the base url of the albatross service and an underlying http apiclient
 // that handles sending requests to the albatross api server
 type HttpClient struct {
-	baseUrl string
+	baseUrl *url.URL
 	client  APIClient
 }
 
@@ -72,11 +72,7 @@ type listResponse struct {
 
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
 func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader) (*http.Response, []byte, error) {
-	u, err := url.Parse(c.baseUrl)
-	if err != nil {
-		return nil, nil, err
-	}
-
+	u := *c.baseUrl
 	u.Path = path.Join(strings.TrimRight(u.Path, "/"), reqPath)
 	return c.client.Send(u.String(), method, body)
 }
