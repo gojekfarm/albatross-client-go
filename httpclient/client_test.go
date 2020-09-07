@@ -2,6 +2,7 @@ package httpclient
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -99,15 +100,15 @@ func TestHttpClientSendOnBadRequest(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 400)
 }
 
-func TestHttpClientSendOnNetworkError(t *testing.T) {
+func TestHttpClientSendOnNetworkErrorWithRetries(t *testing.T) {
 	mc := new(mockClient)
 
-	mc.On("Do", mock.Anything).Return(&http.Response{}, &url.Error{})
+	mc.On("Do", mock.Anything).Return(&http.Response{}, errors.New("Network Error"))
 	client := &Client{
 		client: mc,
 		retry: &config.Retry{
 			RetryCount: 3,
-			Backoff:    2 * time.Second,
+			Backoff:    500 * time.Millisecond,
 		},
 		logger: &logger.DefaultLogger{},
 	}
@@ -115,5 +116,50 @@ func TestHttpClientSendOnNetworkError(t *testing.T) {
 	_, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
 
 	assert.Error(t, err)
+	assert.EqualError(t, err, "Max retries exceeded: Network Error")
 	assert.Nil(t, data)
+}
+
+func TestHttpClientSendOnNetworkErrorWithoutRetries(t *testing.T) {
+	mc := new(mockClient)
+
+	mc.On("Do", mock.Anything).Return(&http.Response{}, errors.New("Network Error"))
+	client := &Client{
+		client: mc,
+		retry:  nil,
+		logger: &logger.DefaultLogger{},
+	}
+
+	_, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
+
+	assert.Error(t, err)
+	assert.EqualError(t, err, "Network Error")
+	assert.Nil(t, data)
+}
+
+func TestHttpClientSendOnNetworkErrorWithRecovery(t *testing.T) {
+	mc := new(mockClient)
+	response := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+	}
+
+	mc.On("Do", mock.Anything).Return(&http.Response{}, &url.Error{}).Once()
+	mc.On("Do", mock.Anything).Return(&http.Response{}, &url.Error{}).Once()
+	mc.On("Do", mock.Anything).Return(response, nil).Once()
+	client := &Client{
+		client: mc,
+		retry: &config.Retry{
+			RetryCount: 3,
+			Backoff:    500 * time.Millisecond,
+		},
+		logger: &logger.DefaultLogger{},
+	}
+
+	resp, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
+
+	assert.NoError(t, err)
+	assert.Equal(t, data, []byte("abcde"))
+	assert.Equal(t, resp.StatusCode, 200)
 }
