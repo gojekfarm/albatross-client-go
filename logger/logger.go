@@ -1,23 +1,26 @@
 package logger
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // DefaultLogger is the default logger for the client.
 // The client users should provide their own logger implmentations
 type DefaultLogger struct{}
 
 func (l *DefaultLogger) Debugf(format string, args ...interface{}) {
-	log.Printf("[Debug] "+format, args)
+	log.Printf("[Debug] %s", fmt.Sprintf(format, args...))
 }
 
 func (l *DefaultLogger) Infof(format string, args ...interface{}) {
-	log.Printf("[Info] "+format, args)
+	log.Printf("[Info] %s", fmt.Sprintf(format, args...))
 }
 
 func (l *DefaultLogger) Errorf(format string, args ...interface{}) {
-	log.Printf("[Error] "+format, args)
+	log.Printf("[Error] %s", fmt.Sprintf(format, args...))
 }
 
 func (l *DefaultLogger) Fatalf(format string, args ...interface{}) {
-	log.Printf("[Fatal] "+format, args)
+	log.Printf("[Fatal] %s", fmt.Sprintf(format, args...))
 }
