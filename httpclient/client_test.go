@@ -70,7 +70,7 @@ func TestHttpClientSendOnServerError(t *testing.T) {
 	resp, data, err := client.Send("http://localhost:444", "GET", bytes.NewReader([]byte("abcde")))
 
 	assert.Nil(t, err)
-	assert.Nil(t, data)
+	assert.Equal(t, data, []byte("abcde"))
 	assert.Equal(t, resp.StatusCode, 500)
 }
 

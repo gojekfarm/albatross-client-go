@@ -48,9 +48,9 @@ func (c *Client) Send(url string, method string, body io.Reader) (*http.Response
 
 	// Log all 5xx errors, and returns the resp for additional parsing
 	if resp.StatusCode >= 500 {
-		// With a 5xx, the response most likely won't be parsable
+		// We just log that we recieved a 5xx and pass the data to the
+		// the caller to handle the 5xx data
 		c.logger.Errorf("server error for albatross api: %s - %s", url, data)
-		return resp, nil, nil
 	}
 
 	return resp, data, nil
