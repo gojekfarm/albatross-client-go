@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +14,10 @@ import (
 
 	"github.com/gojekfarm/albatross-client-go/flags"
 	"github.com/gojekfarm/albatross-client-go/release"
+	"github.com/gorilla/schema"
 )
+
+var encoder = schema.NewEncoder()
 
 // APIClient defines the contract for the http client implementation to send requests to
 // the albatross api server
@@ -31,7 +35,7 @@ type HttpClient struct {
 
 // installRequest is the json schema for the install api
 type installRequest struct {
-	Name   string
+	// Name   string
 	Chart  string
 	Values Values
 	Flags  flags.InstallFlags
@@ -59,11 +63,6 @@ type upgradeResponse struct {
 	Data   string `json:"data,omitempty"`
 }
 
-// listRequest is the json schema for the list api
-type listRequest struct {
-	flags.ListFlags
-}
-
 // listResponse is the json schema to parse the list api response
 type listResponse struct {
 	Error    string            `json:"error,omitempty"`
@@ -71,22 +70,28 @@ type listResponse struct {
 }
 
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
-func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader) (*http.Response, []byte, error) {
+func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader, queryString string) (*http.Response, []byte, error) {
 	u := *c.baseUrl
 	u.Path = path.Join(strings.TrimRight(u.Path, "/"), reqPath)
+	u.RawQuery = queryString
 	return c.client.Send(u.String(), method, body)
 }
 
 // List sends the list api request to the APIClient and returns a list of releases if successfull.
 func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Release, error) {
-	reqBody, err := json.Marshal(&listRequest{
-		ListFlags: fl,
-	})
+	reqPath, err := getListPath(fl.KubeContext, fl.Namespace, fl.AllNamespaces)
 	if err != nil {
 		return nil, err
 	}
-
-	_, data, err := c.request(ctx, "list", http.MethodGet, bytes.NewBuffer(reqBody))
+	queryParams := url.Values{}
+	err = encoder.Encode(fl, queryParams)
+	if err != nil {
+		return nil, err
+	}
+	httpResponse, data, err := c.request(ctx, reqPath, http.MethodGet, nil, queryParams.Encode())
+	if httpResponse.StatusCode == 204 {
+		return []release.Release{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +113,6 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 // TODO: Make install api return an installed release rather than just the status
 func (c *HttpClient) Install(ctx context.Context, name string, chart string, values Values, fl flags.InstallFlags) (string, error) {
 	reqBody, err := json.Marshal(&installRequest{
-		Name:   name,
 		Chart:  chart,
 		Values: values,
 		Flags:  fl,
@@ -116,8 +120,11 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	if err != nil {
 		return "", err
 	}
-
-	_, data, err := c.request(ctx, "install", http.MethodPut, bytes.NewBuffer(reqBody))
+	reqPath, err := getModifyPath(fl.KubeContext, fl.Namespace, name)
+	if err != nil {
+		return "", err
+	}
+	_, data, err := c.request(ctx, reqPath, http.MethodPut, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
 	}
@@ -138,7 +145,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 // Upgrade calls the upgrade api and returns the status
 func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error) {
 	reqBody, err := json.Marshal(&upgradeRequest{
-		Name:   name,
+		// Name:   name,
 		Chart:  chart,
 		Values: values,
 		Flags:  fl,
@@ -146,8 +153,11 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	if err != nil {
 		return "", err
 	}
-
-	_, data, err := c.request(ctx, "upgrade", http.MethodPost, bytes.NewBuffer(reqBody))
+	reqPath, err := getModifyPath(fl.KubeContext, fl.Namespace, name)
+	if err != nil {
+		return "", err
+	}
+	_, data, err := c.request(ctx, reqPath, http.MethodPost, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
 	}
@@ -163,4 +173,30 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 
 	return result.Status, nil
+}
+
+func getModifyPath(cluster, namespace, releaseName string) (string, error) {
+	if cluster == "" {
+		return "", errors.New("kube context is a required parameter")
+	}
+	if releaseName == "" {
+		return "", errors.New("name is a required parameter")
+	}
+	if namespace == "" {
+		namespace = "default"
+	}
+	return fmt.Sprintf("/releases/%s/%s/%s", cluster, namespace, releaseName), nil
+}
+
+func getListPath(cluster, namespace string, allNamespaces bool) (string, error) {
+	if cluster == "" {
+		return "", errors.New("kube context is a required parameter")
+	}
+	if allNamespaces {
+		return fmt.Sprintf("releases/%s", cluster), nil
+	}
+	if namespace == "" {
+		namespace = "default"
+	}
+	return fmt.Sprintf("releases/%s/%s", cluster, namespace), nil
 }

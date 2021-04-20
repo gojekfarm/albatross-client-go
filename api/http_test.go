@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -14,6 +15,7 @@ import (
 	"github.com/gojekfarm/albatross-client-go/release"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 type mockAPIClient struct {
@@ -38,12 +40,13 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
-	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
+	cluster, namespace, releaseName := "integration", "testnamespace", "testrelease"
+	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
 
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
@@ -53,10 +56,18 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 
 	fl := flags.InstallFlags{
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			KubeContext: cluster,
+			Namespace:   namespace,
 		},
 	}
-	result, err := httpclient.Install(context.Background(), "testrelease", "testchart", values, fl)
+	expectedReq, err := json.Marshal(&installRequest{
+		Chart:  "testchart",
+		Values: values,
+		Flags:  fl,
+	})
+	assert.NoError(t, err)
+	apiclient.On("Send", expectedURL, http.MethodPut, bytes.NewBuffer(expectedReq)).Return(httpresponse, apiresponse, nil).Once()
+	result, err := httpclient.Install(context.Background(), releaseName, "testchart", values, fl)
 	assert.NoError(t, err)
 	assert.Equal(t, result, "deployed")
 }
@@ -74,12 +85,11 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 		StatusCode: 400,
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
-	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
@@ -89,10 +99,18 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 
 	fl := flags.InstallFlags{
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			Namespace:   "testnamespace",
+			KubeContext: "staging",
 		},
 	}
-	result, err := httpclient.Install(context.Background(), "testrelease", "testchart", values, fl)
+	jsonRequest, err := json.Marshal(&installRequest{
+		Chart:  "",
+		Values: values,
+		Flags:  fl,
+	})
+	require.NoError(t, err)
+	apiclient.On("Send", mock.Anything, http.MethodPut, bytes.NewBuffer(jsonRequest)).Return(httpresponse, apiresponse, nil)
+	result, err := httpclient.Install(context.Background(), "testrelease", "", values, fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "Install API returned an error: Invalid Request")
@@ -111,12 +129,11 @@ func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
 		StatusCode: 200,
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
-	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
@@ -124,12 +141,24 @@ func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
 		"test": "test",
 	}
 
+	cluster, namespace, releaseName := "integration", "testnamespace", "testrelease"
 	fl := flags.UpgradeFlags{
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			KubeContext: cluster,
+			Namespace:   namespace,
 		},
 	}
-	result, err := httpclient.Upgrade(context.Background(), "testrelease", "testchart", values, fl)
+	req, err := json.Marshal(&upgradeRequest{
+		Chart:  "testchart",
+		Values: values,
+		Flags:  fl,
+	})
+	assert.NoError(t, err)
+	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
+	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
+
+	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
+
 	assert.NoError(t, err)
 	assert.Equal(t, result, "deployed")
 }
@@ -147,25 +176,33 @@ func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
 		StatusCode: 400,
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
-	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
-
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
 	values := Values{
 		"test": "test",
 	}
-
+	cluster, namespace, releaseName := "integration", "testnamespace", "testrelease"
 	fl := flags.UpgradeFlags{
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			Namespace:   "testnamespace",
+			KubeContext: cluster,
 		},
 	}
-	result, err := httpclient.Upgrade(context.Background(), "testrelease", "testchart", values, fl)
+	req, err := json.Marshal(&upgradeRequest{
+		Chart:  "testchart",
+		Values: values,
+		Flags:  fl,
+	})
+	assert.NoError(t, err)
+	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
+	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
+
+	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "Upgrade API returned an error: Invalid Request")
@@ -193,18 +230,72 @@ func TestHttpClientListAPIOnSuccess(t *testing.T) {
 	if err != nil {
 		t.Error("Unable to encode list response")
 	}
-	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	cluster := "integration"
+	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s?failed=true", cluster)
+	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil)
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
 	fl := flags.ListFlags{
+		Failed:        true,
+		AllNamespaces: true,
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			KubeContext: cluster,
+		},
+	}
+	releases, err := httpclient.List(context.Background(), fl)
+	assert.NoError(t, err)
+	assert.Len(t, releases, 1)
+	assert.Equal(t, releases[0].Name, "test")
+	assert.Equal(t, releases[0].Version, 1)
+	assert.Equal(t, releases[0].AppVersion, "v1")
+}
+
+func TestHttpClientListWithNamespaceAPIOnSuccess(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	apiresponse, err := json.Marshal(&listResponse{
+		Releases: []release.Release{
+			{
+				Name:       "test",
+				Namespace:  "test",
+				Version:    1,
+				Status:     "deployed",
+				Chart:      "testchart",
+				AppVersion: "v1",
+			},
+		},
+	})
+	httpresponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+	if err != nil {
+		t.Error("Unable to encode list response")
+	}
+
+	cluster, namespace := "integration", "testnamespace"
+	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s?failed=true", cluster, namespace)
+	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil)
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.ListFlags{
+		Failed: true,
+		CommonFlags: flags.CommonFlags{
+			Namespace:   namespace,
+			KubeContext: cluster,
 		},
 	}
 	releases, err := httpclient.List(context.Background(), fl)
@@ -231,16 +322,17 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	}
 	apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
 
-	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
 	httpclient := &HttpClient{
-		baseUrl: baseUrl,
+		baseUrl: baseURL,
 		client:  apiclient,
 	}
 
 	fl := flags.ListFlags{
 		CommonFlags: flags.CommonFlags{
-			Namespace: "testnamespace",
+			Namespace:   "testnamespace",
+			KubeContext: "unavailable_cluster",
 		},
 	}
 	result, err := httpclient.List(context.Background(), fl)
