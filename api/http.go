@@ -35,7 +35,6 @@ type HttpClient struct {
 
 // installRequest is the json schema for the install api
 type installRequest struct {
-	// Name   string
 	Chart  string
 	Values Values
 	Flags  flags.InstallFlags
@@ -50,7 +49,6 @@ type installResponse struct {
 
 // upgradeRequest is the json schema for the upgrade api
 type upgradeRequest struct {
-	Name   string
 	Chart  string
 	Values Values
 	Flags  flags.UpgradeFlags
@@ -145,7 +143,6 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 // Upgrade calls the upgrade api and returns the status
 func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error) {
 	reqBody, err := json.Marshal(&upgradeRequest{
-		// Name:   name,
 		Chart:  chart,
 		Values: values,
 		Flags:  fl,
