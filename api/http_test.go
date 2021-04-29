@@ -41,7 +41,7 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
 	cluster, namespace, releaseName := "integration", "testnamespace", "testrelease"
-	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
 
 	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
@@ -154,7 +154,7 @@ func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
 		Flags:  fl,
 	})
 	assert.NoError(t, err)
-	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
 	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
 
 	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
@@ -199,7 +199,7 @@ func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
 		Flags:  fl,
 	})
 	assert.NoError(t, err)
-	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s/%s", cluster, namespace, releaseName)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
 	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
 
 	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
@@ -232,7 +232,7 @@ func TestHttpClientListAPIOnSuccess(t *testing.T) {
 	}
 
 	cluster := "integration"
-	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s?failed=true", cluster)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/releases?failed=true", cluster)
 	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil)
 
 	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
@@ -281,7 +281,7 @@ func TestHttpClientListWithNamespaceAPIOnSuccess(t *testing.T) {
 	}
 
 	cluster, namespace := "integration", "testnamespace"
-	expectedURL := fmt.Sprintf("http://localhost:8080/releases/%s/%s?failed=true", cluster, namespace)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases?failed=true", cluster, namespace)
 	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil)
 
 	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
