@@ -78,21 +78,27 @@ func (c *HttpClient) request(ctx context.Context, reqPath string, method string,
 
 // List sends the list api request to the APIClient and returns a list of releases if successfull.
 func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Release, error) {
-	reqPath, err := getListPath(fl.KubeContext, fl.Namespace, fl.AllNamespaces)
-	if err != nil {
+	if err := fl.Valid(); err != nil {
 		return nil, err
 	}
+	var reqPath string 
+	if fl.AllNamespaces {
+		reqPath = fmt.Sprintf("/clusters/%s/releases", fl.KubeContext)
+	} else {
+		reqPath = fmt.Sprintf("/clusters/%s/namespaces/%s/releases", fl.KubeContext, fl.Namespace)
+	}
+
 	queryParams := url.Values{}
-	err = encoder.Encode(fl, queryParams)
+	err := encoder.Encode(fl, queryParams)
 	if err != nil {
 		return nil, err
 	}
 	httpResponse, data, err := c.request(ctx, reqPath, http.MethodGet, nil, queryParams.Encode())
-	if httpResponse.StatusCode == 204 {
-		return []release.Release{}, nil
-	}
 	if err != nil {
 		return nil, err
+	}
+	if httpResponse.StatusCode == 204 {
+		return []release.Release{}, nil
 	}
 
 	var result listResponse
@@ -111,6 +117,12 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 // Install calls the install api and returns the status
 // TODO: Make install api return an installed release rather than just the status
 func (c *HttpClient) Install(ctx context.Context, name string, chart string, values Values, fl flags.InstallFlags) (string, error) {
+	if err := fl.Valid(); err != nil {
+		return "", err
+	}
+	if name == "" {
+		return "", errors.New("name cannot be empty")
+	}
 	reqBody, err := json.Marshal(&installRequest{
 		Name:   name,
 		Chart:  chart,
@@ -120,10 +132,8 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	if err != nil {
 		return "", err
 	}
-	reqPath, err := getInstallPath(fl.KubeContext, fl.Namespace)
-	if err != nil {
-		return "", err
-	}
+	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases", fl.KubeContext, fl.Namespace)
+	
 	_, data, err := c.request(ctx, reqPath, http.MethodPost, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
@@ -144,6 +154,12 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 
 // Upgrade calls the upgrade api and returns the status
 func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error) {
+	if err := fl.Valid(); err != nil  {
+		return "", err
+	}
+	if name == "" {
+		return "", errors.New("name cannot be empty")
+	}
 	reqBody, err := json.Marshal(&upgradeRequest{
 		Chart:  chart,
 		Values: values,
@@ -152,10 +168,8 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	if err != nil {
 		return "", err
 	}
-	reqPath, err := getModifyPath(fl.KubeContext, fl.Namespace, name)
-	if err != nil {
-		return "", err
-	}
+	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", fl.KubeContext, fl.Namespace, name)
+
 	_, data, err := c.request(ctx, reqPath, http.MethodPut, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
@@ -172,40 +186,4 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 
 	return result.Status, nil
-}
-
-func getModifyPath(cluster, namespace, releaseName string) (string, error) {
-	if cluster == "" {
-		return "", errors.New("kube context is a required parameter")
-	}
-	if releaseName == "" {
-		return "", errors.New("name is a required parameter")
-	}
-	if namespace == "" {
-		namespace = "default"
-	}
-	return fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName), nil
-}
-
-func getListPath(cluster, namespace string, allNamespaces bool) (string, error) {
-	if cluster == "" {
-		return "", errors.New("kube context is a required parameter")
-	}
-	if allNamespaces {
-		return fmt.Sprintf("/clusters/%s/releases", cluster), nil
-	}
-	if namespace == "" {
-		namespace = "default"
-	}
-	return fmt.Sprintf("/clusters/%s/namespaces/%s/releases", cluster, namespace), nil
-}
-
-func getInstallPath(cluster, namespace string) (string, error) {
-	if cluster == "" {
-		return "", errors.New("kube context is a required parameter")
-	}
-	if namespace == "" {
-		namespace = "default"
-	}
-	return fmt.Sprintf("/clusters/%s/namespaces/%s/releases", cluster, namespace), nil
 }

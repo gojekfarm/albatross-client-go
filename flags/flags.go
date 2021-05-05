@@ -1,5 +1,7 @@
 package flags
 
+import "errors"
+
 // CommonFlags are common to all apis
 // TODO: We can maybe define setter funcs to allow setting these easily
 type CommonFlags struct {
@@ -33,4 +35,38 @@ type UpgradeFlags struct {
 	Version string `json:"version"`
 	Install bool   `json:"install"`
 	CommonFlags
+}
+
+func (u *UpgradeFlags) Valid() error {
+	if u.KubeContext == "" {
+		return errors.New("kube context is a required parameter")
+	}
+	
+	if u.Namespace == "" {
+		u.Namespace = "default"
+	}
+
+	return nil
+}
+
+func (u *InstallFlags) Valid() error {
+	if u.KubeContext == "" {
+		return errors.New("kube context is a required parameter")
+	}
+	
+	if u.Namespace == "" {
+		u.Namespace = "default"
+	}
+	
+	return nil
+}
+
+func (l *ListFlags) Valid() error {
+	if l.KubeContext == "" {
+		return errors.New("kube context is a required parameter")
+	}
+	if !l.AllNamespaces && l.Namespace == "" {
+		l.Namespace = "default"
+	}
+	return nil
 }
