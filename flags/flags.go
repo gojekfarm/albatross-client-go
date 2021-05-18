@@ -37,6 +37,11 @@ type UpgradeFlags struct {
 	CommonFlags
 }
 
+type StatusFlags struct {
+	Revision int `schema:"revision,omitempty"`
+	CommonFlags
+}
+
 func (u *UpgradeFlags) Valid() error {
 	if u.KubeContext == "" {
 		return errors.New("kube context is a required parameter")
@@ -67,6 +72,16 @@ func (l *ListFlags) Valid() error {
 	}
 	if !l.AllNamespaces && l.Namespace == "" {
 		l.Namespace = "default"
+	}
+	return nil
+}
+
+func (s *StatusFlags) Valid() error {
+	if s.KubeContext == "" {
+		return errors.New("kube context is a required parameter")
+	}
+	if s.Namespace == "" {
+		s.Namespace = "default"
 	}
 	return nil
 }

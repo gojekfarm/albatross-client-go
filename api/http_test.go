@@ -24,6 +24,9 @@ type mockAPIClient struct {
 
 func (m *mockAPIClient) Send(url string, method string, body io.Reader) (*http.Response, []byte, error) {
 	args := m.Called(url, method, body)
+	if args.Get(1) == nil {
+		return args.Get(0).(*http.Response), nil, args.Error(2)
+	}
 	return args.Get(0).(*http.Response), args.Get(1).([]byte), args.Error(2)
 }
 
@@ -341,4 +344,115 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "List API returned an error: cluster unavailable")
+}
+
+func TestHttpClientStatusAPIOnSuccess(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	apiresponse, err := json.Marshal(&statusResponse{
+		Release: release.Release{
+			Name:       "test",
+			Namespace:  "test",
+			Version:    1,
+			Status:     "deployed",
+			Chart:      "testchart",
+			AppVersion: "v1",
+		},
+	})
+	httpresponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+	if err != nil {
+		t.Error("Unable to encode status response")
+	}
+
+	cluster := "integration"
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil)
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.StatusFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace: "test",
+		},
+	}
+	release, err := httpclient.Status(context.Background(), "test", fl)
+	assert.NoError(t, err)
+	assert.Equal(t, release.Name, "test")
+	assert.Equal(t, release.Version, 1)
+	assert.Equal(t, release.AppVersion, "v1")
+}
+
+func TestHttpClientStatusAPIOnNotFoundFailure(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	httpresponse := &http.Response{
+		Status:     "404 Not Found",
+		StatusCode: 404,
+		Body:       http.NoBody,
+	}
+
+	cluster := "integration"
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, nil, nil).Once()
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.StatusFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace: "test",
+		},
+	}
+	_, err := httpclient.Status(context.Background(), "test", fl)
+	assert.Error(t, err)
+	assert.Equal(t, fmt.Sprintf("no release found: %s", "test"), err.Error())
+}
+
+func TestHttpClientStatusAPIOnServerFailure(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	apiresponse, err := json.Marshal(&statusResponse{
+		Error: "server error",
+	})
+	if err != nil {
+		t.Error("Unable to encode status response")
+	}
+	httpresponse := &http.Response{
+		Status:     "500 Internal Server Error",
+		StatusCode: 500,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+
+	cluster := "integration"
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodGet, nil).Return(httpresponse, apiresponse, nil).Once()
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.StatusFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace: "test",
+		},
+	}
+	_, err = httpclient.Status(context.Background(), "test", fl)
+	assert.Error(t, err)
+	assert.Equal(t, "Status API returned an error: server error", err.Error())
 }

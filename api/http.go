@@ -68,6 +68,11 @@ type listResponse struct {
 	Releases []release.Release `json:"releases,omitempty"`
 }
 
+type statusResponse struct {
+	Error string `json:"error,omitempty"`
+	release.Release
+}
+
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
 func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader, queryString string) (*http.Response, []byte, error) {
 	u := *c.baseUrl
@@ -112,6 +117,42 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 	}
 
 	return result.Releases, nil
+}
+
+func (c *HttpClient) Status(ctx context.Context, name string, fl flags.StatusFlags) (release.Release, error) {
+	if name == "" {
+		return release.Release{}, errors.New("name cannot be empty")
+	}
+
+	if err := fl.Valid(); err != nil {
+		return release.Release{}, err
+	}
+
+	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", fl.KubeContext, fl.Namespace, name)
+
+	queryParams := url.Values{}
+	err := encoder.Encode(fl, queryParams)
+	if err != nil {
+		return release.Release{}, err
+	}
+	httpResponse, data, err := c.request(ctx, reqPath, http.MethodGet, nil, queryParams.Encode())
+	if err != nil {
+		return release.Release{}, err
+	}
+	if httpResponse.StatusCode == 404 {
+		return release.Release{}, fmt.Errorf("no release found: %s", name)
+	} 
+	
+	var result statusResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		return release.Release{}, err
+	}
+
+	if result.Error != "" {
+		return release.Release{}, fmt.Errorf("Status API returned an error: %s", result.Error)
+	}
+
+	return result.Release, nil
 }
 
 // Install calls the install api and returns the status
