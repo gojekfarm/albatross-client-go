@@ -44,7 +44,7 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
 	}
 	cluster, namespace, releaseName := "integration", "testnamespace", "testrelease"
-	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases", cluster, namespace)
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
 
 	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
 
@@ -64,13 +64,12 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		},
 	}
 	expectedReq, err := json.Marshal(&installRequest{
-		Name:   releaseName,
 		Chart:  "testchart",
 		Values: values,
 		Flags:  fl,
 	})
 	assert.NoError(t, err)
-	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(expectedReq)).Return(httpresponse, apiresponse, nil).Once()
+	apiclient.On("Send", expectedURL, http.MethodPut, bytes.NewBuffer(expectedReq)).Return(httpresponse, apiresponse, nil).Once()
 	result, err := httpclient.Install(context.Background(), releaseName, "testchart", values, fl)
 	assert.NoError(t, err)
 	assert.Equal(t, result, "deployed")
@@ -108,13 +107,12 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 		},
 	}
 	jsonRequest, err := json.Marshal(&installRequest{
-		Name:   "testrelease",
 		Chart:  "",
 		Values: values,
 		Flags:  fl,
 	})
 	require.NoError(t, err)
-	apiclient.On("Send", mock.Anything, http.MethodPost, bytes.NewBuffer(jsonRequest)).Return(httpresponse, apiresponse, nil)
+	apiclient.On("Send", mock.Anything, http.MethodPut, bytes.NewBuffer(jsonRequest)).Return(httpresponse, apiresponse, nil)
 	result, err := httpclient.Install(context.Background(), "testrelease", "", values, fl)
 	assert.Error(t, err)
 	assert.Empty(t, result)
@@ -160,7 +158,7 @@ func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
-	apiclient.On("Send", expectedURL, http.MethodPut, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
+	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
 
 	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
 
@@ -205,7 +203,7 @@ func TestHttpClientUpgradeAPIOnFailure(t *testing.T) {
 	})
 	assert.NoError(t, err)
 	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
-	apiclient.On("Send", expectedURL, http.MethodPut, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
+	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(req)).Return(httpresponse, apiresponse, nil)
 
 	result, err := httpclient.Upgrade(context.Background(), releaseName, "testchart", values, fl)
 	assert.Error(t, err)
