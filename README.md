@@ -86,7 +86,14 @@ flags := flags.ListFlags{
 releases, err := client.List(context.Background(), flags)
 
 ```
+### Uninstall
+```go
+flags := flags.UninstallFlags{
+    DryRun: false,
+}
 
+status, release, err := client.Uninstall(context.Background(), "releaseName", "clusterName", "namespace", flags)
+```
 ## Status
 
 The project is under development, and the API is subject to breaking changes.
