@@ -42,11 +42,19 @@ type StatusFlags struct {
 	CommonFlags
 }
 
+type UninstallFlags struct {
+	DryRun       bool `schema:"dry_run,omitempty"`
+	DisableHooks bool `schema:"disable_hooks,omitempty"`
+	KeepHistory  bool `schema:"keep_history,omitempty"`
+	Timeout      int  `schema:"timeout,omitempty"`
+	CommonFlags
+}
+
 func (u *UpgradeFlags) Valid() error {
 	if u.KubeContext == "" {
 		return errors.New("kube context is a required parameter")
 	}
-	
+
 	if u.Namespace == "" {
 		u.Namespace = "default"
 	}
@@ -58,11 +66,11 @@ func (u *InstallFlags) Valid() error {
 	if u.KubeContext == "" {
 		return errors.New("kube context is a required parameter")
 	}
-	
+
 	if u.Namespace == "" {
 		u.Namespace = "default"
 	}
-	
+
 	return nil
 }
 
@@ -83,5 +91,17 @@ func (s *StatusFlags) Valid() error {
 	if s.Namespace == "" {
 		s.Namespace = "default"
 	}
+	return nil
+}
+
+func (u *UninstallFlags) Valid() error {
+	if u.KubeContext == "" {
+		return errors.New("kube context is a required parameter")
+	}
+
+	if u.Namespace == "" {
+		u.Namespace = "default"
+	}
+
 	return nil
 }

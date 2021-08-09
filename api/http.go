@@ -73,6 +73,13 @@ type statusResponse struct {
 	release.Release
 }
 
+// uninstall is the json schema to parse the upgrade api response
+type unintstallResponse struct {
+	Error   string          `json:"error,omitempty"`
+	Status  string          `json:"status,omitempty"`
+	Release release.Release `json:"release,omitempty"`
+}
+
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
 func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader, queryString string) (*http.Response, []byte, error) {
 	u := *c.baseUrl
@@ -86,7 +93,7 @@ func (c *HttpClient) List(ctx context.Context, fl flags.ListFlags) ([]release.Re
 	if err := fl.Valid(); err != nil {
 		return nil, err
 	}
-	var reqPath string 
+	var reqPath string
 	if fl.AllNamespaces {
 		reqPath = fmt.Sprintf("/clusters/%s/releases", fl.KubeContext)
 	} else {
@@ -141,8 +148,8 @@ func (c *HttpClient) Status(ctx context.Context, name string, fl flags.StatusFla
 	}
 	if httpResponse.StatusCode == 404 {
 		return release.Release{}, fmt.Errorf("no release found: %s", name)
-	} 
-	
+	}
+
 	var result statusResponse
 	if err := json.Unmarshal(data, &result); err != nil {
 		return release.Release{}, err
@@ -174,7 +181,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 		return "", err
 	}
 	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases", fl.KubeContext, fl.Namespace)
-	
+
 	_, data, err := c.request(ctx, reqPath, http.MethodPost, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
@@ -195,7 +202,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 
 // Upgrade calls the upgrade api and returns the status
 func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error) {
-	if err := fl.Valid(); err != nil  {
+	if err := fl.Valid(); err != nil {
 		return "", err
 	}
 	if name == "" {
@@ -227,4 +234,37 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 
 	return result.Status, nil
+}
+
+func (c *HttpClient) Uninstall(ctx context.Context, name string, fl flags.UninstallFlags) (release.Release, error) {
+	if err := fl.Valid(); err != nil {
+		return release.Release{}, err
+	}
+	if name == "" {
+		return release.Release{}, errors.New("name cannot be empty")
+	}
+	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", fl.KubeContext, fl.Namespace, name)
+	queryParams := url.Values{}
+	err := encoder.Encode(fl, queryParams)
+	if err != nil {
+		return release.Release{}, err
+	}
+	httpResponse, data, err := c.request(ctx, reqPath, http.MethodDelete, nil, queryParams.Encode())
+	if err != nil {
+		return release.Release{}, err
+	}
+	if httpResponse.StatusCode == 404 {
+		return release.Release{}, fmt.Errorf("no release found: %s", name)
+	}
+
+	var result unintstallResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		return result.Release, err
+	}
+
+	if result.Error != "" {
+		return result.Release, fmt.Errorf("Uninstall API returned an error: %s", result.Error)
+	}
+
+	return result.Release, nil
 }

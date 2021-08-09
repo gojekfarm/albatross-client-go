@@ -64,7 +64,7 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		},
 	}
 	expectedReq, err := json.Marshal(&installRequest{
-		Name: releaseName,
+		Name:   releaseName,
 		Chart:  "testchart",
 		Values: values,
 		Flags:  fl,
@@ -108,7 +108,7 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 		},
 	}
 	jsonRequest, err := json.Marshal(&installRequest{
-		Name: "testrelease",
+		Name:   "testrelease",
 		Chart:  "",
 		Values: values,
 		Flags:  fl,
@@ -381,7 +381,7 @@ func TestHttpClientStatusAPIOnSuccess(t *testing.T) {
 	fl := flags.StatusFlags{
 		CommonFlags: flags.CommonFlags{
 			KubeContext: cluster,
-			Namespace: "test",
+			Namespace:   "test",
 		},
 	}
 	release, err := httpclient.Status(context.Background(), "test", fl)
@@ -413,7 +413,7 @@ func TestHttpClientStatusAPIOnNotFoundFailure(t *testing.T) {
 	fl := flags.StatusFlags{
 		CommonFlags: flags.CommonFlags{
 			KubeContext: cluster,
-			Namespace: "test",
+			Namespace:   "test",
 		},
 	}
 	_, err := httpclient.Status(context.Background(), "test", fl)
@@ -449,10 +449,133 @@ func TestHttpClientStatusAPIOnServerFailure(t *testing.T) {
 	fl := flags.StatusFlags{
 		CommonFlags: flags.CommonFlags{
 			KubeContext: cluster,
-			Namespace: "test",
+			Namespace:   "test",
 		},
 	}
 	_, err = httpclient.Status(context.Background(), "test", fl)
 	assert.Error(t, err)
 	assert.Equal(t, "Status API returned an error: server error", err.Error())
+}
+
+func TestHttpClientUninstallApiOnSuccess(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	cluster := "integration"
+	expectedRelease := release.Release{
+		Name:       "test",
+		Namespace:  "test",
+		Version:    1,
+		Status:     "deployed",
+		Chart:      "testchart",
+		AppVersion: "v1",
+	}
+	apiresponse, err := json.Marshal(&unintstallResponse{
+		Release: expectedRelease,
+	})
+	if err != nil {
+		t.Error(err)
+	}
+	httpresponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s?keep_history=true", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodDelete, nil).Return(httpresponse, apiresponse, nil).Once()
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.UninstallFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace:   "test",
+		},
+		KeepHistory: true,
+	}
+	release, err := httpclient.Uninstall(context.Background(), "test", fl)
+	assert.NoError(t, err)
+	assert.Equal(t, expectedRelease, release)
+}
+
+func TestHttpClientUninstallApiOnFailure(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	cluster := "integration"
+	expectedError := "Uninstall API returned an error: Something went wrong on server end"
+	apiresponse, err := json.Marshal(&unintstallResponse{
+		Error: "Something went wrong on server end",
+	})
+	if err != nil {
+		t.Error("Unable to encode uninstall response")
+	}
+	httpresponse := &http.Response{
+		Status:     "500 Internal Server Error",
+		StatusCode: 500,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodDelete, nil).Return(httpresponse, apiresponse, nil).Once()
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.UninstallFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace:   "test",
+		},
+	}
+	release, err := httpclient.Uninstall(context.Background(), "test", fl)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err.Error())
+	assert.NotNil(t, release)
+	assert.Empty(t, release.Name)
+}
+
+func TestHttpClientUninstallApiOnNotFound(t *testing.T) {
+	apiclient := new(mockAPIClient)
+	cluster := "integration"
+	expectedError := "no release found: test"
+	apiresponse, err := json.Marshal(&unintstallResponse{
+		Error: "Something went wrong on server end",
+	})
+	if err != nil {
+		t.Error("Unable to encode uninstall response")
+	}
+	httpresponse := &http.Response{
+		Status:     "404 Not Found",
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	}
+
+	expectedURL := fmt.Sprintf("http://localhost:8080/clusters/%s/namespaces/%s/releases/%s", cluster, "test", "test")
+	apiclient.On("Send", expectedURL, http.MethodDelete, nil).Return(httpresponse, apiresponse, nil).Once()
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	fl := flags.UninstallFlags{
+		CommonFlags: flags.CommonFlags{
+			KubeContext: cluster,
+			Namespace:   "test",
+		},
+	}
+	release, err := httpclient.Uninstall(context.Background(), "test", fl)
+	assert.Error(t, err)
+	assert.Equal(t, expectedError, err.Error())
+	assert.NotNil(t, release)
+	assert.Empty(t, release.Name)
 }

@@ -28,6 +28,8 @@ type Client interface {
 
 	// Status returns the status of a release with the specific release and revision
 	Status(ctx context.Context, name string, fl flags.StatusFlags) (release.Release, error)
+
+	Uninstall(ctx context.Context, name string, fl flags.UninstallFlags) (release.Release, error)
 }
 
 // NewClient returns a new http client for the corresponding host
