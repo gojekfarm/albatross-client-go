@@ -199,7 +199,7 @@ func (c * HttpClient) Uninstall(ctx context.Context, releaseName string, cluster
 	}
 
 	if result.Error != "" {
-		return "", new(release.Release), fmt.Errorf("Uninstall API returned an error: %s", result.Error)
+		return "", nil, fmt.Errorf("Uninstall API returned an error: %s", result.Error)
 	}
 
 	return result.Status, &result.Release, nil

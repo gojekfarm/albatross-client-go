@@ -249,37 +249,6 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	assert.EqualError(t, err, "List API returned an error: cluster unavailable")
 }
 
-
-	//apiclient := new(ApiHelper.Client)
-	//apiresponse, err := json.Marshal(&uninstallResponse{
-	//	Status: "uninstalled",
-	//})
-	//if err != nil {
-	//	t.Error("Unable to encode uninstall response")
-	//}
-	//httpresponse := &http.Response{
-	//	Status:     "200 OK",
-	//	StatusCode: 200,
-	//	Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
-	//}
-	//apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
-
-	//baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
-	//
-	//httpclient := &HttpClient{
-	//	baseUrl: baseUrl,
-	//	client:  apiclient,
-	//}
-	//
-	//
-	//fl := flags.UninstallFlags{
-	//	DryRun: true,
-	//}
-	//result, err := httpclient.Uninstall(context.Background(), "kind-kind", "arpit-test-release", "workload", fl)
-	//assert.NoError(t, err)
-	//assert.Equal(t, result, "uninstalled")
-
-
 func TestHttpClientUninstallAPIOnSuccess(t *testing.T) {
 	apiClient := new(mockAPIClient)
 	apiResponse, err := json.Marshal(&uninstallResponse{
