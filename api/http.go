@@ -13,6 +13,7 @@ import (
 
 	"github.com/gojekfarm/albatross-client-go/flags"
 	"github.com/gojekfarm/albatross-client-go/release"
+	"github.com/google/go-querystring/query"
 )
 
 // APIClient defines the contract for the http client implementation to send requests to
@@ -70,10 +71,25 @@ type listResponse struct {
 	Releases []release.Release `json:"releases,omitempty"`
 }
 
+type uninstallResponse struct {
+	Error   string `json: "error, omitempty"`
+	Status  string `json:"status, omitempty"`
+	Release release.Release `json:"release, omitempty"`
+}
+
 // request is a helper function to append the path to baseUrl and send the request to the APIClient
 func (c *HttpClient) request(ctx context.Context, reqPath string, method string, body io.Reader) (*http.Response, []byte, error) {
 	u := *c.baseUrl
 	u.Path = path.Join(strings.TrimRight(u.Path, "/"), reqPath)
+	return c.client.Send(u.String(), method, body)
+}
+
+// requestWithQueryParams is a helper function to append path and query params to baseUrl and send the request to the APIClient
+func (c * HttpClient) requestWithQueryParams(ctx context.Context, reqPath string, reqQueryParams string, method string, body io.Reader) (*http.Response, []byte, error) {
+	u := *c.baseUrl
+	u.Path = path.Join(strings.TrimRight(u.Path, "/"), reqPath)
+	u.RawQuery = reqQueryParams
+	fmt.Println("The url formed is ", u.String())
 	return c.client.Send(u.String(), method, body)
 }
 
@@ -163,4 +179,28 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 
 	return result.Status, nil
+}
+
+// Uninstall calls the uninstall api and returns status
+func (c * HttpClient) Uninstall(ctx context.Context, releaseName string, cluster string, namespace string, fl flags.UninstallFlags) (string, *release.Release, error) {
+	reqPath := fmt.Sprintf("clusters/%s/namespaces/%s/releases/%s", cluster, namespace, releaseName)
+
+	values, _ := query.Values(fl)
+	queryString := values.Encode()
+
+	_, data, err := c.requestWithQueryParams(ctx, reqPath, queryString, http.MethodDelete, nil)
+
+	if err != nil {
+		return "", nil, err
+	}
+	var result uninstallResponse
+	if err := json.Unmarshal(data, &result); err != nil {
+		return "", nil, err
+	}
+
+	if result.Error != "" {
+		return "", new(release.Release), fmt.Errorf("Uninstall API returned an error: %s", result.Error)
+	}
+
+	return result.Status, &result.Release, nil
 }

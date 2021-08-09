@@ -25,6 +25,10 @@ type Client interface {
 	// Upgrade installs a release, specified by the params, and returns a status.
 	// UpgradeFlags govern the actions of upgrade action, i.e whether it should be installed if not present
 	Upgrade(ctx context.Context, name string, chart string, values Values, fl flags.UpgradeFlags) (string, error)
+
+	// Uninstall uninstalls a release specified by the params and returns a status.
+	// UninstallFlags govern the behaviour of the uninstall action
+	Uninstall(ctx context.Context, releaseName string, cluster string, namespace string, fl flags.UninstallFlags) (string, *release.Release, error)
 }
 
 // NewClient returns a new http client for the corresponding host

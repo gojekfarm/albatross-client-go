@@ -34,3 +34,12 @@ type UpgradeFlags struct {
 	Install bool
 	CommonFlags
 }
+
+// UninstallFlags defines flags supported by the uninstall api
+// These flag go in the query params
+type UninstallFlags struct {
+	DryRun       bool `url:"dry_run,omitempty"`
+	KeepHistory  bool `url:"keep_history,omitempty"`
+	DisableHooks bool `url:"disable_hooks,omitempty"`
+	Timeout      int  `url:"timeout,omitempty"`
+}

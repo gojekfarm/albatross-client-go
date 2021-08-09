@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/gojekfarm/albatross-client-go/flags"
+	"github.com/gojekfarm/albatross-client-go/release"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"testing"
-
-	"github.com/gojekfarm/albatross-client-go/flags"
-	"github.com/gojekfarm/albatross-client-go/release"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
+	"time"
 )
 
 type mockAPIClient struct {
@@ -247,4 +247,155 @@ func TestHttpClientListAPIOnFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "List API returned an error: cluster unavailable")
+}
+
+
+	//apiclient := new(ApiHelper.Client)
+	//apiresponse, err := json.Marshal(&uninstallResponse{
+	//	Status: "uninstalled",
+	//})
+	//if err != nil {
+	//	t.Error("Unable to encode uninstall response")
+	//}
+	//httpresponse := &http.Response{
+	//	Status:     "200 OK",
+	//	StatusCode: 200,
+	//	Body:       ioutil.NopCloser(bytes.NewReader(apiresponse)),
+	//}
+	//apiclient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpresponse, apiresponse, nil)
+
+	//baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+	//
+	//httpclient := &HttpClient{
+	//	baseUrl: baseUrl,
+	//	client:  apiclient,
+	//}
+	//
+	//
+	//fl := flags.UninstallFlags{
+	//	DryRun: true,
+	//}
+	//result, err := httpclient.Uninstall(context.Background(), "kind-kind", "arpit-test-release", "workload", fl)
+	//assert.NoError(t, err)
+	//assert.Equal(t, result, "uninstalled")
+
+
+func TestHttpClientUninstallAPIOnSuccess(t *testing.T) {
+	apiClient := new(mockAPIClient)
+	apiResponse, err := json.Marshal(&uninstallResponse{
+		Status: "uninstalled",
+		Release: release.Release{
+			Name:"testrelease",
+			Namespace: "testnamespace",
+			Version: 1,
+			Updated: time.Now(),
+			Status: "uninstalled",
+			Chart: "testchart",
+			AppVersion: "1.16.0",
+		},
+	})
+	if err != nil {
+		t.Error("Unable to encode install response")
+	}
+	httpResponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiResponse)),
+	}
+	apiClient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpResponse, apiResponse, nil)
+
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseUrl,
+		client:  apiClient,
+	}
+
+	fl := flags.UninstallFlags{
+		DryRun: false,
+	}
+	result, release, err := httpclient.Uninstall(context.Background(), "testrelease", "testchart", "testnamespace", fl)
+	assert.NoError(t, err)
+	assert.Equal(t, result, "uninstalled")
+	assert.Equal(t, release.Name, "testrelease")
+	assert.Equal(t, release.Namespace, "testnamespace")
+	assert.Equal(t, release.Version, 1)
+	assert.Equal(t, release.AppVersion, "1.16.0")
+}
+
+func TestHttpClientUninstallAPIWithDryRunFlag(t *testing.T) {
+	apiClient := new(mockAPIClient)
+	apiResponse, err := json.Marshal(&uninstallResponse{
+		Status: "deployed",
+		Release: release.Release{
+			Name:"testrelease",
+			Namespace: "testnamespace",
+			Version: 1,
+			Updated: time.Now(),
+			Status: "deployed",
+			Chart: "testchart",
+			AppVersion: "1.16.0",
+		},
+	})
+	if err != nil {
+		t.Error("Unable to encode install response")
+	}
+	httpResponse := &http.Response{
+		Status:     "200 OK",
+		StatusCode: 200,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiResponse)),
+	}
+	apiClient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpResponse, apiResponse, nil)
+
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseUrl,
+		client:  apiClient,
+	}
+
+
+	fl := flags.UninstallFlags{
+		DryRun: true,
+	}
+	result, release, err := httpclient.Uninstall(context.Background(), "testrelease", "testchart", "testnamespace", fl)
+	assert.NoError(t, err)
+	assert.Equal(t, result, "deployed")
+	assert.Equal(t, release.Name, "testrelease")
+	assert.Equal(t, release.Version, 1)
+	assert.Equal(t, release.Namespace, "testnamespace")
+	assert.Equal(t, release.AppVersion, "1.16.0")
+}
+
+func TestHttpClientUninstallAPIOnFailure(t *testing.T) {
+	apiClient := new(mockAPIClient)
+	apiResponse, err := json.Marshal(&uninstallResponse{
+		Error: "uninstall: Release not loaded: testrelease: release: not found",
+	})
+
+	if err != nil {
+		t.Error("Unable to encode install response")
+	}
+
+	httpResponse := &http.Response{
+		Status:     "404 Not Found",
+		StatusCode: 404,
+		Body:       ioutil.NopCloser(bytes.NewReader(apiResponse)),
+	}
+	apiClient.On("Send", mock.Anything, mock.Anything, mock.Anything).Return(httpResponse, apiResponse, nil)
+
+	baseUrl, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseUrl,
+		client:  apiClient,
+	}
+
+	fl := flags.UninstallFlags{
+		DryRun: false,
+	}
+	result, release, err := httpclient.Uninstall(context.Background(), "testrelease", "testchart", "testnamespace", fl)
+	assert.Empty(t, result)
+	assert.Empty(t, release)
+	assert.EqualError(t, err, "Uninstall API returned an error: uninstall: Release not loaded: testrelease: release: not found")
 }
