@@ -35,6 +35,7 @@ type HttpClient struct {
 
 // installRequest is the json schema for the install api
 type installRequest struct {
+	Name   string
 	Chart  string
 	Values Values
 	Flags  flags.InstallFlags
@@ -171,6 +172,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 		return "", errors.New("name cannot be empty")
 	}
 	reqBody, err := json.Marshal(&installRequest{
+		Name:   name,
 		Chart:  chart,
 		Values: values,
 		Flags:  fl,
@@ -178,9 +180,9 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	if err != nil {
 		return "", err
 	}
-	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", fl.KubeContext, fl.Namespace, name)
+	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases", fl.KubeContext, fl.Namespace)
 
-	_, data, err := c.request(ctx, reqPath, http.MethodPut, bytes.NewBuffer(reqBody), "")
+	_, data, err := c.request(ctx, reqPath, http.MethodPost, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
 	}
@@ -216,7 +218,7 @@ func (c *HttpClient) Upgrade(ctx context.Context, name string, chart string, val
 	}
 	reqPath := fmt.Sprintf("/clusters/%s/namespaces/%s/releases/%s", fl.KubeContext, fl.Namespace, name)
 
-	_, data, err := c.request(ctx, reqPath, http.MethodPost, bytes.NewBuffer(reqBody), "")
+	_, data, err := c.request(ctx, reqPath, http.MethodPut, bytes.NewBuffer(reqBody), "")
 	if err != nil {
 		return "", err
 	}
