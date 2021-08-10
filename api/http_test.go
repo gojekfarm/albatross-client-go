@@ -64,7 +64,6 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		},
 	}
 	expectedReq, err := json.Marshal(&installRequest{
-		Name:   releaseName,
 		Chart:  "testchart",
 		Values: values,
 		Flags:  fl,
@@ -108,7 +107,6 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 		},
 	}
 	jsonRequest, err := json.Marshal(&installRequest{
-		Name:   "testrelease",
 		Chart:  "",
 		Values: values,
 		Flags:  fl,
