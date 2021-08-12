@@ -87,6 +87,20 @@ releases, err := client.List(context.Background(), flags)
 
 ```
 
+### Uninstall
+
+```go 
+
+flags := flags.UninstallFlags{
+	CommonFlags: flags.CommonFlags{
+		Namespace: "namespace"
+	}
+}
+ 
+release, err := client.Uninstall(context.Background(), name, flags)
+
+```
+
 ## Status
 
 The project is under development, and the API is subject to breaking changes.
