@@ -1,3 +1,7 @@
+![Build Status](https://github.com/gojekfarm/albatross-client-go/actions/workflows/master.yml/badge.svg?branch=master)
+[![codecov](https://codecov.io/gh/gojekfarm/albatross-client-go/branch/master/graph/badge.svg)](https://codecov.io/gh/gojekfarm/albatross-client-go)
+
+
 # Albatross Client Go
 
 A go client to interact with the albatross API
