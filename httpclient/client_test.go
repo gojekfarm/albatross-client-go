@@ -49,6 +49,145 @@ func TestHttpClientSendOnSuccess(t *testing.T) {
 	assert.Equal(t, resp.StatusCode, 200)
 }
 
+func TestHttpClientSendWithRetry(t *testing.T) {
+
+	t.Run("When body is nil and call returns with 200", func(t *testing.T) {
+		mc := new(mockClient)
+		response := &http.Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Body:       ioutil.NopCloser(bytes.NewReader([]byte("ab"))),
+		}
+		mc.On("Do", mock.Anything).Return(response, nil)
+		httpClient := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 3,
+				Backoff:    2 * time.Second,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := httpClient.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.NoError(t, err)
+		assert.Equal(t, resp, response)
+	})
+
+	t.Run("When body is nil and call returns with 500", func(t *testing.T) {
+		mc := new(mockClient)
+		response := &http.Response{
+			Status:     "500 Internal Server Error",
+			StatusCode: 500,
+			Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		}
+
+		mc.On("Do", mock.Anything).Return(response, nil)
+		client := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 3,
+				Backoff:    2 * time.Second,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := client.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp, response)
+	})
+
+	t.Run("When body is nil and call returns with 400", func(t *testing.T) {
+		mc := new(mockClient)
+		response := &http.Response{
+			Status:     "400 Bad Request",
+			StatusCode: 400,
+			Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		}
+
+		mc.On("Do", mock.Anything).Return(response, nil)
+		client := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 3,
+				Backoff:    2 * time.Second,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := client.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.Nil(t, err)
+		assert.Equal(t, resp, response)
+	})
+
+	t.Run("When body is nil and call returns with Network Error On retries", func(t *testing.T) {
+		mc := new(mockClient)
+
+		mc.On("Do", mock.Anything).Return(&http.Response{}, errors.New("Network Error"))
+		client := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 3,
+				Backoff:    500 * time.Millisecond,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := client.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "Max retries exceeded: Network Error")
+		assert.Nil(t, resp)
+	})
+
+	t.Run("When body is nil and call returns with Network Error With zero retries", func(t *testing.T) {
+		mc := new(mockClient)
+
+		mc.On("Do", mock.Anything).Return(&http.Response{}, errors.New("Network Error"))
+		client := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 0,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := client.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.Error(t, err)
+		assert.EqualError(t, err, "Max retries exceeded: Network Error")
+		assert.Nil(t, resp)
+	})
+
+	t.Run("When body is nil and call recovers after retries", func(t *testing.T) {
+		mc := new(mockClient)
+		response := &http.Response{
+			Status:     "200 OK",
+			StatusCode: 200,
+			Body:       ioutil.NopCloser(bytes.NewReader([]byte("abcde"))),
+		}
+
+		mc.On("Do", mock.Anything).Return(&http.Response{}, &url.Error{}).Once()
+		mc.On("Do", mock.Anything).Return(&http.Response{}, &url.Error{}).Once()
+		mc.On("Do", mock.Anything).Return(response, nil).Once()
+		client := &Client{
+			client: mc,
+			retry: &config.Retry{
+				RetryCount: 3,
+				Backoff:    500 * time.Millisecond,
+			},
+			logger: &logger.DefaultLogger{},
+		}
+
+		resp, err := client.sendWithRetry("http://localhost:444", "GET", nil)
+
+		assert.NoError(t, err)
+		assert.Equal(t, resp, response)
+	})
+}
+
 func TestHttpClientSendOnServerError(t *testing.T) {
 	mc := new(mockClient)
 	response := &http.Response{
