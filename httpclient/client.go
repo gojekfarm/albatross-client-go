@@ -83,9 +83,13 @@ func (c *Client) getBackoffForRetry(count int) time.Duration {
 
 func (c *Client) sendWithRetry(url string, method string, body io.Reader) (*http.Response, error) {
 	// reqBytes is used to populate the body for the request for each retry,
-	reqBytes, err := ioutil.ReadAll(body)
-	if err != nil {
-		return nil, fmt.Errorf("Error reading the request body: %s", err)
+	var reqBytes []byte = nil
+
+	if body != nil {
+		var err error = nil
+		if reqBytes, err = ioutil.ReadAll(body); err != nil {
+			return nil, fmt.Errorf("Error reading the request body: %s", err)
+		}
 	}
 
 	var retryError error
