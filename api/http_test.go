@@ -67,12 +67,14 @@ func TestHttpClientInstallAPIOnSuccess(t *testing.T) {
 		Chart:  "testchart",
 		Values: values,
 		Flags:  fl,
+		Name:   releaseName,
 	})
 	assert.NoError(t, err)
 	apiclient.On("Send", expectedURL, http.MethodPost, bytes.NewBuffer(expectedReq)).Return(httpresponse, apiresponse, nil).Once()
 	result, err := httpclient.Install(context.Background(), releaseName, "testchart", values, fl)
 	assert.NoError(t, err)
 	assert.Equal(t, result, "deployed")
+	apiclient.AssertExpectations(t)
 }
 
 func TestHttpClientInstallAPIOnFailure(t *testing.T) {
@@ -110,6 +112,7 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 		Chart:  "",
 		Values: values,
 		Flags:  fl,
+		Name:   "testrelease",
 	})
 	require.NoError(t, err)
 	apiclient.On("Send", mock.Anything, http.MethodPost, bytes.NewBuffer(jsonRequest)).Return(httpresponse, apiresponse, nil)
@@ -117,6 +120,34 @@ func TestHttpClientInstallAPIOnFailure(t *testing.T) {
 	assert.Error(t, err)
 	assert.Empty(t, result)
 	assert.EqualError(t, err, "Install API returned an error: Invalid Request")
+	apiclient.AssertExpectations(t)
+}
+
+func TestHttpClientInstallAPIReturnsErrorWhenNameIsEmptyString(t *testing.T) {
+	apiclient := new(mockAPIClient)
+
+	baseURL, _ := url.ParseRequestURI("http://localhost:8080")
+
+	httpclient := &HttpClient{
+		baseUrl: baseURL,
+		client:  apiclient,
+	}
+
+	values := Values{
+		"test": "test",
+	}
+
+	fl := flags.InstallFlags{
+		CommonFlags: flags.CommonFlags{
+			Namespace:   "testnamespace",
+			KubeContext: "staging",
+		},
+	}
+	result, err := httpclient.Install(context.Background(), "", "", values, fl)
+	assert.Error(t, err)
+	assert.Empty(t, result)
+	assert.EqualError(t, err, "name cannot be empty")
+	apiclient.AssertExpectations(t)
 }
 
 func TestHttpClientUpgradeAPIOnSuccess(t *testing.T) {
