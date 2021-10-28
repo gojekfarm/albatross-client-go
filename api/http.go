@@ -38,6 +38,7 @@ type installRequest struct {
 	Chart  string
 	Values Values
 	Flags  flags.InstallFlags
+	Name   string
 }
 
 // installResponse is the json schema to parse the install api response
@@ -167,6 +168,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 	if err := fl.Valid(); err != nil {
 		return "", err
 	}
+
 	if name == "" {
 		return "", errors.New("name cannot be empty")
 	}
@@ -174,6 +176,7 @@ func (c *HttpClient) Install(ctx context.Context, name string, chart string, val
 		Chart:  chart,
 		Values: values,
 		Flags:  fl,
+		Name:   name,
 	})
 	if err != nil {
 		return "", err
